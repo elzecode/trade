@@ -1,0 +1,10 @@
+version: '3.7'
+services:
+  trade:
+    container_name: 'trade'
+    working_dir: '/var/www/trade'
+    build:
+      dockerfile: Dockerfile
+      context: './docker'
+    volumes:
+      - './.:/var/www/trade'
