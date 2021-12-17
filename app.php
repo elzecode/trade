@@ -1,6 +1,8 @@
 <?php
 
 namespace app;
+
+use Dotenv\Dotenv;
 use jamesRUS52\TinkoffInvest\TICandle;
 use jamesRUS52\TinkoffInvest\TICandleIntervalEnum;
 use jamesRUS52\TinkoffInvest\TIClient;
@@ -9,6 +11,9 @@ use jamesRUS52\TinkoffInvest\TIOrderBook;
 use jamesRUS52\TinkoffInvest\TISiteEnum;
 
 require_once 'vendor/autoload.php';
+
+$dotenv = Dotenv::createUnsafeImmutable(__DIR__);
+$dotenv->load();
 
 class Trade
 {
@@ -86,4 +91,4 @@ class Trade
 
 }
 
-new Trade(getenv('token'));
+new Trade(getenv('TOKEN'));

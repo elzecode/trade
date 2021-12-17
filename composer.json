@@ -1,5 +1,6 @@
 {
     "require": {
-        "james.rus52/tinkoffinvest": "^1.2"
+        "james.rus52/tinkoffinvest": "^1.2",
+        "vlucas/phpdotenv": "^5.4"
     }
 }
