@@ -12,6 +12,7 @@ use jamesRUS52\TinkoffInvest\TIInstrument;
 use jamesRUS52\TinkoffInvest\TIOrderBook;
 use jamesRUS52\TinkoffInvest\TISiteEnum;
 use WebSocket\Client;
+use WebSocket\ConnectionException;
 
 require_once 'vendor/autoload.php';
 
@@ -36,6 +37,8 @@ class Bot
     ];
     private $upCountTmp = 0;
     private $downCountTmp = 0;
+
+    private $buyCount = 0;
 
     public function __construct($token, $ticker)
     {
@@ -63,15 +66,23 @@ class Bot
         $this->bankStart = $this->bank = $portfolio->getCurrencyBalance(TICurrencyEnum::RUB);
         $this->client->subscribeGettingCandle($this->instrument->getFigi(), TICandleIntervalEnum::MIN1);
 
-        while (true) $this->client->startGetting(function (TICandle $candle) {
-            //echo chr(27).chr(91).'H'.chr(27).chr(91).'J';
-            $this->analizator($candle, $this->instrument);
-        }, null, null);
+        while (true) {
+            try {
+                $this->client->startGetting(function (TICandle $candle) {
+                    //echo chr(27).chr(91).'H'.chr(27).chr(91).'J';
+                    $this->analizator($candle, $this->instrument);
+                }, null, null);
+            } catch (ConnectionException $e) {
+            }
 
+        }
     }
 
     public function analizator(TICandle $candle)
     {
+        /**
+         * @var TICandle $prevCandle
+         */
         $prevCandle = count($this->history) > 0 ? $this->history[count($this->history) - 1] : false;
 
         $priceBuy = $this->instrument->getLot() * $candle->getClose();
@@ -88,22 +99,20 @@ class Bot
         $metricsUse = true;
         if ($this->lastOperation['lotCount'] !== 0) {
             $this->say('| Думаю о продаже');
+            if ($this->downCountTmp > 29) {
+                $this->say('! Продаю в минус, долгий простой');
+                $this->sale($candle);
+            }
             if ($candle->getClose() > $this->lastOperation['closePrice'] && $this->downCountTmp > 0) {
                 $metricsUse = !$this->sale($candle);
-            } else {
-                if ($candle->getClose() > $this->lastOperation['closePrice']) {
-                    $this->say('| Не продаю, цена ниже покупки');
-                }
-                if ($candle->getClose() < $this->lastOperation['closePrice']) {
-                    $this->say('| Не продаю, цена растет');
-                }
+            }
+            if ($candle->getClose() < $this->lastOperation['closePrice']) {
+                $this->buy($candle);
             }
         } else {
             $this->say('| Думаю о покупке');
-            if ($this->lastOperation['lastSalePrice'] <= $priceBuy) {
+            if ($this->lastOperation['lastSalePrice'] > $priceBuy || $this->buyCount == 0) {
                 $metricsUse = !$this->buy($candle);
-            } else {
-                $this->say('| Не покупаю последняя цена продажи больше цены текущей покупки');
             }
         }
 
@@ -114,10 +123,7 @@ class Bot
                 $this->downCountTmp = 0;
             }
 
-            $operand = $this->lastOperation['closePrice'] > 0 ?
-                $this->lastOperation['closePrice'] : (
-                $prevCandle ? $prevCandle->getClose() : $candle->getClose()
-                );
+            $operand = $prevCandle->getClose();
 
             $this->upCountTmp = $candle->getClose() > $operand ?
                 $this->upCountTmp + 1 :
@@ -133,7 +139,7 @@ class Bot
         if ($metricsUse) {
             $this->say('up: ' . $this->upCountTmp . ' ' . 'down: ' . $this->downCountTmp . ' | operand : ' . $operand);
         }
-        $this->say('lastOperation: closePrice - ' . $this->lastOperation['closePrice'] . '(' . $this->lastOperation['lotCount'] . ') sum - ' . ($this->lastOperation['lotCount'] * $candle->getClose()));
+        $this->say('lastOperation: closePrice - ' . $this->lastOperation['closePrice'] . '(' . $this->lastOperation['lotCount'] . ') sum - ' . ($this->lastOperation['lotCount'] * $candle->getClose()) . ' lastSalePrice - ' . $this->lastOperation['lastSalePrice']);
         $this->say('----------------------------------------------------------');
         $this->history = [$candle];
     }
@@ -142,6 +148,7 @@ class Bot
     {
         $priceBuy = $this->instrument->getLot() * $candle->getClose();
         if ($this->bank > $priceBuy) {
+            $this->buyCount++;
             $this->bank = $this->bank - $priceBuy;
             $this->lastOperation['closePrice'] = $candle->getClose();
             $this->lastOperation['lotCount'] += $this->instrument->getLot();
