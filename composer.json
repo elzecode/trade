@@ -1,7 +1,12 @@
 {
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
     "require": {
-        "james.rus52/tinkoffinvest": "^1.2",
         "vlucas/phpdotenv": "^5.4",
-        "ext-ncurses": "*"
+        "ext-curl": "*",
+        "textalk/websocket": "^1.5"
     }
 }
