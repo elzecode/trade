@@ -11,8 +11,8 @@ class Instrument
     private $name;
     private $currency;
     private $lotInPortfolio;
-    private $lastBuyPrice;
-    private $lastSalePrice;
+    private $lastBuyPrice = 0;
+    private $lastSalePrice = 0;
     private DateTime $lastSaleDataTime;
 
     public function __construct(

@@ -24,10 +24,7 @@ class Bot extends Base
 
     public function analizator(OrderBook $orderBook)
     {
-        if ($this->prevOrderBook instanceof OrderBook) {
-            $prevBuyPrice = $this->prevOrderBook->getBestBuyPrice();
-            $prevSalePrice = $this->prevOrderBook->getBestSalePrice();
-        } else {
+        if (!($this->prevOrderBook instanceof OrderBook)) {
             $this->prevOrderBook = $orderBook;
             return;
         }
@@ -119,8 +116,8 @@ class Bot extends Base
                 ' >' : ($salePrice < $prevSalePrice ? ' <' : '')) .
                 ' (up: ' . $this->tmpSaleUp . ' down: ' . $this->tmpSaleDown . ' static: ' . $this->tmpSaleStatic . ')');
         $this->say('Куплено: ' . $this->instrument->getLotInPortfolio() .
-            ' На сумму - ' . $this->instrument->getLotInPortfolio() * $salePrice .
-            ' Цена покупки - ' . $this->instrument->getLastBuyPrice());
+            ' На сумму - ' . $this->instrument->getLotInPortfolio() * $salePrice);
+        $this->say('Цена последней покупки - ' . $this->instrument->getLastBuyPrice()  . ' Цена последней продажи - ' . $this->instrument->getLastSalePrice());
 
         $this->say('Банк: ' . $this->balance
             . '(' . ($this->balance + ($this->instrument->getLotInPortfolio() * $salePrice)) . ')'
