@@ -2,129 +2,97 @@
 
 namespace App;
 
+use App\Entity\Candle;
 use App\Entity\OrderBook;
+use App\Strategy\Interface\BaseStrategyInterface;
+use App\Strategy\Interface\StrategyByCandleInterface;
+use ReflectionClass;
 
 class Bot extends Base
 {
-    /**
-     * @var OrderBook $prevOrderBook
-     */
-    public $prevOrderBook;
-
-    public $tmpSaleUp = 0;
-    public $tmpSaleDown = 0;
-    public $tmpSaleStatic = 0;
+    public string $strategySaid = '';
 
     public function run()
     {
-        $this->client->orderBookSubscribe(function ($data) {
-            $this->analizator($data);
-        }, $this->instrument->getFigi());
-    }
+        $this->say('Подготовка стратегии');
+        $this->say('');
 
-    public function analizator(OrderBook $orderBook)
-    {
-        if (!($this->prevOrderBook instanceof OrderBook)) {
-            $this->prevOrderBook = $orderBook;
-            return;
+        try {
+            $reflection = new ReflectionClass('App\\Strategy\\' . $this->strategy);
+            $strategyInterfaces = $reflection->getInterfaceNames();
+            $strategyInstance = $reflection->newInstance();
+        } catch (\Exception $exception) {
+            $this->say('Стратегия ' . $this->strategy . ' не найдена');
+            die;
         }
 
-        $this->calcTmp($orderBook);
-
-        $this->say('------------------------------------------------------------------------------');
-        $this->say($orderBook->getTime()->format('H:i:s'));
-        $this->printInfo($orderBook);
-
-        if ($this->instrument->getLotInPortfolio() == 0) {
-            if ($this->instrument->getLastBuyPrice() == 0) {
-                $this->buy($orderBook);
-            } else {
-                if ($this->instrument->getLastSalePrice() > ($orderBook->getBestBuyPrice() + 0.01)) {
-                    $this->buy($orderBook);
-                }
-            }
-        } else {
-            if ($this->tmpSaleUp > 0 && $this->tmpSaleDown > 0) {
-                if (($orderBook->getBestSalePrice() + 0.01) > $this->instrument->getLastBuyPrice()) {
-                    $this->sale($orderBook);
-                }
-            }
+        if (in_array(StrategyByCandleInterface::class, $strategyInterfaces)) {
+            $this->client->candleSubscribe(function (Candle $candle) use ($strategyInstance, $strategyInterfaces) {
+                $this->beforeRunStrategy($strategyInstance, $strategyInterfaces);
+                $strategyInstance->run($candle, $this->instrument, $this->balance);
+                $this->afterRunStrategy($strategyInstance, $strategyInterfaces);
+                $this->info($candle);
+            }, $this->instrument->getFigi());
         }
 
-        $this->say("\r\n");
-
-        $this->prevOrderBook = $orderBook;
-        $this->say('------------------------------------------------------------------------------');
+//        if (in_array(StrategyByOrderBookInterface::class, $strategyInterfaces)) {
+//            $this->client->orderBookSubscribe(function (OrderBook $orderBook) use ($strategyInstance) {
+//                $strategyInstance->run($orderBook);
+//                $this->info($orderBook);
+//            }, $this->instrument->getFigi());
+//        }
     }
 
-    public function sale(OrderBook $orderBook)
+    public function syncResultStrategy(BaseStrategyInterface $strategyInstance)
     {
-        $salePrice = $orderBook->getBestSalePrice() - 0.01;
-        $this->balance = $this->balance + $salePrice;
-        $this->instrument->setLotInPortfolio($this->instrument->getLotInPortfolio() - 1);
-        $this->instrument->setLastSalePrice($salePrice);
-        $this->tmpSaleUp = 0;
-        $this->tmpSaleDown = 0;
-        $this->tmpSaleStatic = 0;
-
-        $this->say('Продал за ' . $salePrice);
+        $this->instrument = $strategyInstance->getInstrument();
+        $this->balance = $strategyInstance->getBalance();
     }
 
-    public function buy(OrderBook $orderBook)
+    public function beforeRunStrategy(&$strategyInstance, $strategyInterfaces)
     {
-        $buyPrice = $orderBook->getBestBuyPrice() + 0.01;
-        if ($this->balance > $buyPrice) {
-            $this->balance = $this->balance - $buyPrice;
-            $this->instrument->setLotInPortfolio($this->instrument->getLotInPortfolio() + 1);
-            $this->instrument->setLastBuyPrice($buyPrice);
-            $this->tmpSaleUp = 0;
-            $this->tmpSaleDown = 0;
-            $this->tmpSaleStatic = 0;
-            $this->say('Купил за ' . $buyPrice);
+        if (in_array(BaseStrategyInterface::class, $strategyInterfaces)) {
+            $strategyInstance->setInstrument($this->instrument);
+            $strategyInstance->setBalance($this->balance);
         }
     }
 
-    public function calcTmp(OrderBook $orderBook)
+    public function afterRunStrategy(&$strategyInstance, $strategyInterfaces)
     {
-        if ($orderBook->getBestSalePrice() == ($this->instrument->getLastBuyPrice() - 0.01)) {
-            $this->tmpSaleUp = 0;
-            $this->tmpSaleDown = 0;
-            $this->tmpSaleStatic = 0;
-        } else {
-            $this->tmpSaleUp = $orderBook->getBestSalePrice() > $this->prevOrderBook->getBestSalePrice() ?
-                ++$this->tmpSaleUp : $this->tmpSaleUp;
-
-            $this->tmpSaleDown = $orderBook->getBestSalePrice() < $this->prevOrderBook->getBestSalePrice() ?
-                ++$this->tmpSaleDown : $this->tmpSaleDown;
-
-            $this->tmpSaleStatic = $orderBook->getBestSalePrice() == $this->prevOrderBook->getBestSalePrice() ?
-                ++$this->tmpSaleStatic : 0;
+        if (in_array(BaseStrategyInterface::class, $strategyInterfaces)) {
+            $this->instrument = $strategyInstance->getInstrument();
+            $this->balance = $strategyInstance->getBalance();
+            $this->strategySaid = $strategyInstance->whatYouSaid();
+            $strategyInstance->cleanSay();
         }
     }
 
-    public function printInfo(OrderBook $orderBook)
+    public function info($obj)
     {
-        $prevBuyPrice = $this->prevOrderBook->getBestBuyPrice();
-        $prevSalePrice = $this->prevOrderBook->getBestSalePrice();
+        $this->say('############################# ' . date('H:i:s'));
 
-        $buyPrice = $orderBook->getBestBuyPrice();
-        $salePrice = $orderBook->getBestSalePrice();
+        $price = null;
 
-        $this->say('B: ' . $buyPrice . ($buyPrice > $prevBuyPrice ?
-                ' >' : ($buyPrice < $prevBuyPrice ? ' <' : '')) .
-                ' S: ' . $salePrice . ($salePrice > $prevSalePrice ?
-                ' >' : ($salePrice < $prevSalePrice ? ' <' : '')) .
-                ' (up: ' . $this->tmpSaleUp . ' down: ' . $this->tmpSaleDown . ' static: ' . $this->tmpSaleStatic . ')');
-        $this->say('Куплено: ' . $this->instrument->getLotInPortfolio() .
-            ' На сумму - ' . $this->instrument->getLotInPortfolio() * $salePrice);
-        $this->say('Цена последней покупки - ' . $this->instrument->getLastBuyPrice()  . ' Цена последней продажи - ' . $this->instrument->getLastSalePrice());
-
-        $this->say('Банк: ' . $this->balance
-            . '(' . ($this->balance + ($this->instrument->getLotInPortfolio() * $salePrice)) . ')'
-            . ' | Изначально ' . $this->startBalance);
-        $this->say("\r\n");
+        if ($obj instanceof Candle) {
+            $price = $obj->getClose();
+        } elseif ($obj instanceof OrderBook) {
+            $price = $obj->getBestSalePrice();
+        }
 
 
+        $this->say($this->instrument->getName() . ' - ' . $price . $this->tradeCurrency);
+        $this->say('Balance: ' . $this->balance . $this->tradeCurrency . ' | Start: ' . $this->startBalance . $this->tradeCurrency);
+        $this->say('Lots in balance: ' . $this->instrument->getLotInPortfolio());
+        $this->say('Last buy price:  ' . $this->instrument->getLastBuyPrice());
+        $this->say('Last sale price: ' . $this->instrument->getLastSalePrice());
+
+        if ($this->strategySaid != '') {
+            $this->say('');
+            $this->say($this->strategySaid);
+        }
+
+        $this->say('#############################');
+        $this->say('');
     }
 
 }

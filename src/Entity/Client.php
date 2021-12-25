@@ -18,6 +18,31 @@ class Client
         ]);
     }
 
+    public function candleSubscribe($callback, $figi, $interval = '1min')
+    {
+        $this->wsClient->send(json_encode([
+            'event' => 'candle:subscribe',
+            'figi' => $figi,
+            'interval' => $interval
+        ]));
+
+        $this->isSubscribe = true;
+        while ($this->isSubscribe) {
+            if ($json = $this->wsClient->receive()) {
+                $data = json_decode($json, true);
+                call_user_func($callback, new Candle(
+                    $data['payload']['figi'],
+                    $data['payload']['interval'],
+                    $data['payload']['o'],
+                    $data['payload']['c'],
+                    $data['payload']['h'],
+                    $data['payload']['l']
+                ));
+            }
+
+        }
+    }
+
     public function orderBookSubscribe($callback, $figi, $depth = 5)
     {
         $this->wsClient->send(json_encode([

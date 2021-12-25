@@ -10,4 +10,4 @@ $dotenv->load();
 
 date_default_timezone_set('Europe/Moscow');
 
-new Bot(getenv('TOKEN'), 'EGHT');
+new Bot(getenv('TOKEN'), getenv('TIKER'), getenv('STRATEGY'));

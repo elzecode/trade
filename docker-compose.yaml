@@ -1,10 +1,22 @@
 version: '3.7'
 services:
+  redis:
+    container_name: 'trade_redis'
+    image: redis
+    ports:
+      - "6379:6379"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
   trade:
-    container_name: 'trade'
+    container_name: 'trade_main'
+    command: php app.php
     working_dir: '/var/www/trade'
     build:
       dockerfile: Dockerfile
       context: './docker'
     volumes:
       - './.:/var/www/trade'
+    depends_on:
+      - redis
+    links:
+      - redis

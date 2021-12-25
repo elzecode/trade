@@ -5,8 +5,9 @@
         }
     },
     "require": {
-        "vlucas/phpdotenv": "^5.4",
         "ext-curl": "*",
+        "ext-redis": "*",
+        "vlucas/phpdotenv": "^5.4",
         "textalk/websocket": "^1.5"
     }
 }
