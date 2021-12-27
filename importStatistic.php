@@ -23,7 +23,7 @@ $response = $service->spreadsheets_values->clear($spreadsheetId, 'Лист1!A1:F
 
 $response = $service->spreadsheets->get($spreadsheetId);
 $values =  [
-    ['Время', 'Операция', 'Цена операции', 'Баланс'],
+    ['Время', 'Операция', 'Цена операции', 'Баланс', '', 'Стакан покупка(лоты)', 'Стакан продажа(лоты)'],
 ];
 $body = new Google_Service_Sheets_ValueRange(['values' => $values]);
 
@@ -47,11 +47,29 @@ while (true)
         foreach ($data as $time => $body) {
             if ($time && $lastTime < $time && $body) {
                 $data = json_decode($body, true);
+
+                $asksLots = 0;
+                $asksPrice = 0;
+                $bidsLots = 0;
+                $bidsPrice = 0;
+
+                if (isset($data)) {
+                    if (isset($data['additionalInfo'])) {
+                        $asksLots = $data['additionalInfo']['asks']['quantity'] ?? 0;
+                        $asksPrice = $data['additionalInfo']['asks']['price'] ?? 0;
+                        $bidsLots = $data['additionalInfo']['bids']['quantity'] ?? 0;
+                        $bidsPrice = $data['additionalInfo']['bids']['price'] ?? 0;
+                    }
+                }
+
                 $values[] = [
                     date('Y-m-d H:i:s', $time),
                     $data['operation'],
                     $data['price'],
-                    $data['balance']
+                    $data['balance'],
+                    '',
+                    $asksPrice . '(' . $asksLots . ')',
+                    $bidsPrice . '(' . $bidsLots . ')',
                 ];
                 $lastTime = $time;
             }

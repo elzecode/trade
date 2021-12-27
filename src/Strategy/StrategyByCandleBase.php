@@ -46,7 +46,7 @@ abstract class StrategyByCandleBase implements BaseStrategyInterface, StrategyBy
         $this->getInstrument()->setLastBuyDateTime($candle->getDateTime());
         $this->buyCount++;
 
-        if (getenv('TRADING')) {
+        if (getenv('TRADING') == 'yes') {
             $this->operation(Operation::BUY, $countLotBeCanBuy);
         }
 
@@ -73,7 +73,7 @@ abstract class StrategyByCandleBase implements BaseStrategyInterface, StrategyBy
         $this->getInstrument()->setLastSaleDateTime($candle->getDateTime());
         $this->saleCount++;
 
-        if (getenv('TRADING')) {
+        if (getenv('TRADING') == 'yes') {
             $this->operation(Operation::SALE, $saleLots);
         }
 

@@ -44,13 +44,13 @@ class OrderBook
         return $this->asks;
     }
 
-    public function getBestBuyPrice()
+    public function getBestBids()
     {
-        return $this->getBids()[0][0];
+        return $this->getBids()[0];
     }
 
-    public function getBestSalePrice()
+    public function getBestAsks()
     {
-        return $this->getAsks()[0][0];
+        return $this->getAsks()[0];
     }
 }

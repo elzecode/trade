@@ -37,7 +37,7 @@ class Bot extends Base
 //            $this->beforeRunStrategy($strategyInstance, $strategyInterfaces);
 //            $strategyInstance->run($candle, $this->instrument, $this->balance);
 //            $this->afterRunStrategy($strategyInstance, $strategyInterfaces);
-//            $this->info($candle);
+//            //$this->info($candle);
 //        }
 //
 //        die;
@@ -90,6 +90,13 @@ class Bot extends Base
             $redisMessage = $strategyInstance->getRedisMessage();
             if ($redisMessage != null) {
                 list($operation, $price, $balance, $time, $additionalInfo) = $redisMessage;
+                $orderBook = $this->client->marketOrderBook($this->instrument->getFigi());
+                if ($orderBook) {
+                    $additionalInfo = [
+                        'bids' => $orderBook->getBestBids(),
+                        'asks' => $orderBook->getBestAsks()
+                    ];
+                }
                 $this->saveToRedis($operation, $price, $balance, $additionalInfo, $time);
             }
             $strategyInstance->cleanRedisMessage();

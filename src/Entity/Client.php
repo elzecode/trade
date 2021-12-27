@@ -20,6 +20,22 @@ class Client
         ]);
     }
 
+    public function marketOrderBook($figi, $depth = 5): OrderBook
+    {
+        $response = $this->sendRequest('/market/orderbook', 'GET', [
+            'figi' => $figi,
+            'depth' => $depth
+        ]);
+
+        $data = $response->getData();
+        return new OrderBook(
+            $data['payload']['figi'],
+            $data['payload']['bids'],
+            $data['payload']['asks']
+        );
+
+    }
+
     public function marketOrder($figi, $type, $lots)
     {
         $response = $this->sendRequest('/orders/market-order', 'POST', ['figi' => $figi], json_encode([
