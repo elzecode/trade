@@ -42,6 +42,7 @@ abstract class Base
     {
         $this->redis = new Redis();
         $this->redis->connect('trade_redis', 6379);
+        $this->redis->flushAll();
     }
 
     private function prepareClient()
@@ -68,15 +69,16 @@ abstract class Base
                 break;
             }
         }
-        $this->balance = $this->startBalance = 1000; //$balance;
+        $this->balance = $this->startBalance = $balance;
     }
 
-    public function saveToRedis($operation, $price, $balance)
+    public function saveToRedis($operation, $price, $balance, $additionalInfo = [], $time = false)
     {
-        $this->redis->hSet($this->ticker, time(), json_encode([
+        $this->redis->hSet($this->ticker, $time ?? time(), json_encode([
             'operation' => $operation,
             'price' => $price,
-            'balance' => $balance
+            'balance' => $balance,
+            'additionalInfo' => $additionalInfo
         ]));
     }
 

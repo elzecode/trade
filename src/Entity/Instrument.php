@@ -13,7 +13,9 @@ class Instrument
     private $lotInPortfolio;
     private $lastBuyPrice = 0;
     private $lastSalePrice = 0;
-    private DateTime $lastSaleDataTime;
+
+    private $lastSaleDateTime;
+    private $lastBuyDateTime;
 
     public function __construct(
         $figi,
@@ -30,12 +32,26 @@ class Instrument
         $this->currency = $currency;
         $this->lotInPortfolio = $lotInPortfolio;
         $this->lastBuyPrice = $lastBuyPrice;
-        $this->lastSaleDataTime = new DateTime();
     }
 
-    public function getLastSaleDataTime()
+    public function getLastBuyDateTime(): DateTime | null
     {
-        return $this->lastSaleDataTime;
+        return $this->lastBuyDateTime;
+    }
+
+    public function setLastBuyDateTime(DateTime $dateTime)
+    {
+        $this->lastBuyDateTime = $dateTime;
+    }
+
+    public function getLastSaleDateTime(): DateTime | null
+    {
+        return $this->lastSaleDateTime;
+    }
+
+    public function setLastSaleDateTime(DateTime $dateTime)
+    {
+        $this->lastSaleDateTime = $dateTime;
     }
 
     public function getLastBuyPrice()

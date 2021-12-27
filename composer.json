@@ -7,7 +7,9 @@
     "require": {
         "ext-curl": "*",
         "ext-redis": "*",
+        "ext-bcmath": "*",
         "vlucas/phpdotenv": "^5.4",
-        "textalk/websocket": "^1.5"
+        "textalk/websocket": "^1.5",
+        "google/apiclient": "^2.0"
     }
 }

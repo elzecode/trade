@@ -6,7 +6,7 @@ use DateTime;
 
 class Candle
 {
-    private DateTime $time;
+    private DateTime $dateTime;
     private string $figi;
     private string $interval;
     private float $open;
@@ -20,10 +20,11 @@ class Candle
         $open,
         $close,
         $high,
-        $low
+        $low,
+        $time
     )
     {
-        $this->time = new DateTime();
+        $this->dateTime = $time;
         $this->figi = $figi;
         $this->interval = $interval;
         $this->open = $open;
@@ -32,9 +33,9 @@ class Candle
         $this->low = $low;
     }
 
-    public function getTime()
+    public function getDateTime()
     {
-        return $this->time;
+        return $this->dateTime;
     }
 
     public function getFigi()
@@ -65,5 +66,12 @@ class Candle
     public function getLow()
     {
         return $this->low;
+    }
+
+    public function getColor()
+    {
+        return $this->getOpen() > $this->getClose() ?
+            \App\Enums\Candle::COLOR_RED :
+            \App\Enums\Candle::COLOR_GREEN;
     }
 }

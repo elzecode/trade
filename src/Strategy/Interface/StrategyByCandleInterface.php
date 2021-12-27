@@ -3,8 +3,6 @@
 namespace App\Strategy\Interface;
 
 use App\Entity\Candle;
-use App\Entity\Instrument;
-
 
 interface StrategyByCandleInterface
 {

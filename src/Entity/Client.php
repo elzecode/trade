@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use DateTime;
+
 class Client
 {
     private string $url = 'https://api-invest.tinkoff.ru/openapi';
@@ -18,6 +20,31 @@ class Client
         ]);
     }
 
+    public function marketOrder($figi, $type, $lots)
+    {
+        $response = $this->sendRequest('/orders/market-order', 'POST', ['figi' => $figi], json_encode([
+            'operation' => $type,
+            'lots' => $lots
+        ]));
+
+        print_r($response);
+    }
+
+    public function getHistoryCandles(DateTime $from, DateTime $to, string $figi, string $interval = '1min')
+    {
+        $candles = [];
+        $response = $this->sendRequest('/market/candles', 'GET', [
+            'figi' => $figi,
+            'interval' => $interval,
+            'from' => $from->format(DATE_W3C),
+            'to' => $to->format(DATE_W3C)
+        ]);
+        foreach ($response->getData()['payload']['candles'] as $data) {
+            $candles[] = $this->makeCandle($data);
+        }
+        return $candles;
+    }
+
     public function candleSubscribe($callback, $figi, $interval = '1min')
     {
         $this->wsClient->send(json_encode([
@@ -30,16 +57,8 @@ class Client
         while ($this->isSubscribe) {
             if ($json = $this->wsClient->receive()) {
                 $data = json_decode($json, true);
-                call_user_func($callback, new Candle(
-                    $data['payload']['figi'],
-                    $data['payload']['interval'],
-                    $data['payload']['o'],
-                    $data['payload']['c'],
-                    $data['payload']['h'],
-                    $data['payload']['l']
-                ));
+                call_user_func($callback, $this->makeCandle($data['payload']));
             }
-
         }
     }
 
@@ -136,6 +155,18 @@ class Client
         }
 
         return new Response($out, $res);
+    }
+
+    private function makeCandle($data): Candle
+    {
+        return new Candle($data['figi'],
+            $data['interval'],
+            $data['o'],
+            $data['c'],
+            $data['h'],
+            $data['l'],
+            new DateTime($data['time'])
+        );
     }
 
 }

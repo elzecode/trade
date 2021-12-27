@@ -10,7 +10,13 @@ interface BaseStrategyInterface
     public function getInstrument(): Instrument;
     public function setBalance(float $balance);
     public function getBalance(): float;
-    public function cleanSay(): bool;
-    public function say(string $msg);
-    public function whatYouSaid(): string;
+    public function printingMessage(string $msg);
+    public function getPrintingMessage(): string;
+    public function cleanPrintingMessage(): bool;
+    public function redisMessage($operation, $price, $balance, $time = false): bool;
+    public function getRedisMessage(): array | null;
+    public function cleanRedisMessage(): bool;
+    public function operation($type, $lots): bool;
+    public function getOperation(): array | null;
+    public function cleanOperation(): bool;
 }

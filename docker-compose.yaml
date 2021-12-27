@@ -20,3 +20,17 @@ services:
       - redis
     links:
       - redis
+  import_statistic:
+    container_name: 'trade_import_statistic'
+    command: php importStatistic.php
+    working_dir: '/var/www/trade'
+    build:
+      dockerfile: Dockerfile
+      context: './docker'
+    volumes:
+      - './.:/var/www/trade'
+    depends_on:
+      - redis
+#      - trade
+    links:
+      - redis

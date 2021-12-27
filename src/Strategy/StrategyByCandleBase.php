@@ -4,6 +4,7 @@ namespace App\Strategy;
 
 use App\Entity\Candle;
 use App\Entity\Instrument;
+use App\Enums\Operation;
 use App\Strategy\Interface\BaseStrategyInterface;
 use App\Strategy\Interface\StrategyByCandleInterface;
 
@@ -12,7 +13,12 @@ abstract class StrategyByCandleBase implements BaseStrategyInterface, StrategyBy
     public Instrument $instrument;
     public float $balance;
 
-    public $message;
+    public $printingMessage;
+    public $redisMessage;
+    public $operation;
+
+    public $buyCount = 0;
+    public $saleCount = 0;
 
     public function setInstrument(Instrument $instrument)
     {
@@ -32,31 +38,100 @@ abstract class StrategyByCandleBase implements BaseStrategyInterface, StrategyBy
     }
     public function buy(Candle $candle): bool
     {
-        $this->setBalance($this->getBalance() - $candle->getClose());
-        $this->getInstrument()->setLastBuyPrice($candle->getClose());
-        $this->getInstrument()->setLotInPortfolio($this->getInstrument()->getLotInPortfolio() + 1);
+        $priceWithTax = $this->round($candle->getClose() / getenv('TAX'));
+        $countLotBeCanBuy = floor($this->getBalance() / $priceWithTax);
+        $this->setBalance($this->round($this->getBalance() - ($countLotBeCanBuy * $priceWithTax)));
+        $this->getInstrument()->setLastBuyPrice($priceWithTax);
+        $this->getInstrument()->setLotInPortfolio($this->getInstrument()->getLotInPortfolio() + $countLotBeCanBuy);
+        $this->getInstrument()->setLastBuyDateTime($candle->getDateTime());
+        $this->buyCount++;
+
+        if (getenv('TRADING')) {
+            $this->operation(Operation::BUY, $countLotBeCanBuy);
+        }
+
+        $this->redisMessage(
+            Operation::BUY,
+            $candle->getClose(),
+            $this->getBalance(),
+            [
+                'lots' => $this->instrument->getLotInPortfolio()
+            ],
+            $candle->getDateTime()->getTimestamp()
+        );
         return true;
     }
     public function sale(Candle $candle): bool
     {
-        $salePrice = ($candle->getClose() * $this->instrument->getLotInPortfolio());
-        $this->setBalance($this->getBalance() + $salePrice);
+        $priceWithTax = $this->round($candle->getClose() / getenv('TAX'));
+        $saleLots = $this->instrument->getLotInPortfolio();
+        $salePrice = $this->round($priceWithTax * $saleLots);
+        $this->setBalance($this->round($this->getBalance() + $salePrice));
         $this->getInstrument()->setLotInPortfolio(0);
-        $this->getInstrument()->setLastSalePrice($salePrice);
+        $this->getInstrument()->setLastSalePrice($priceWithTax);
         $this->getInstrument()->setLastBuyPrice(0);
+        $this->getInstrument()->setLastSaleDateTime($candle->getDateTime());
+        $this->saleCount++;
+
+        if (getenv('TRADING')) {
+            $this->operation(Operation::SALE, $saleLots);
+        }
+
+        $this->redisMessage(
+            Operation::SALE,
+            $candle->getClose(),
+            $this->getBalance(),
+            [
+                'lots' => $this->instrument->getLotInPortfolio()
+            ],
+            $candle->getDateTime()->getTimestamp()
+        );
         return true;
     }
-    public function say(string $msg)
+    public function printingMessage(string $msg)
     {
-        $this->message .= $msg . "\r\n";
+        $this->printingMessage .= $msg . "\r\n";
     }
-    public function whatYouSaid(): string
+    public function getPrintingMessage(): string
     {
-        return $this->message;
+        return $this->printingMessage;
     }
-    public function cleanSay(): bool
+    public function cleanPrintingMessage(): bool
     {
-        $this->message = '';
+        $this->printingMessage = '';
         return true;
+    }
+    public function redisMessage($operation, $price, $balance, $additionalInfo = [], $time = false): bool
+    {
+        $this->redisMessage = [$operation, $price, $balance, $time, $additionalInfo];
+        return true;
+    }
+    public function getRedisMessage(): array | null
+    {
+        return $this->redisMessage;
+    }
+    public function cleanRedisMessage(): bool
+    {
+        $this->redisMessage = null;
+        return true;
+    }
+    public function operation($type, $lots): bool
+    {
+        $this->operation = [$type, $lots];
+        return true;
+    }
+    public function getOperation(): array|null
+    {
+        return $this->operation;
+    }
+    public function cleanOperation(): bool
+    {
+        $this->operation = null;
+        return true;
+    }
+
+    private function round($value)
+    {
+        return bcdiv($value, 1, 2);
     }
 }
